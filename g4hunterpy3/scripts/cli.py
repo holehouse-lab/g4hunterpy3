@@ -174,6 +174,7 @@ def main() -> int:
                          genome_length=len(seq), 
                          out_pdf=plot_path, 
                          nbins=args.complex_plot_nbins, 
+                         score=args.score,
                          percentile_to_use=args.complex_plot_percentile)
 
     return 0

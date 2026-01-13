@@ -2,6 +2,16 @@
 import numpy as np
 import matplotlib.pyplot as plt  # local import so CLI works without mpl
 from pathlib import Path
+import matplotlib
+
+# so we can edit text if PDFs generated
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
+
+font = {'family' : 'arial',
+    	'weight' : 'normal'}
+
+matplotlib.rc('font', **font)
 
 # ................................................................................................
 #
@@ -52,8 +62,13 @@ def complex_plot(hits: list,
                  genome_length: int,                                                    
                  out_pdf: Path, 
                  nbins: int = 1000,
+                 score: float = 1.2,
                  percentile_to_use: int = 95,                 
-                 dpi: int = 300):
+                 dpi: int = 300,
+                 figsize: tuple = (8, 1.5),
+                 colorbar_vmax: float = 3.0,
+                colorbar_vmin: float = None
+                 ):
     
     """
     Save a PDF plot of the sliding-window scores.
@@ -75,12 +90,26 @@ def complex_plot(hits: list,
     nbins : int, optional
         Number of bins for the complex plot, by default 1000.
 
+    score : float, optional
+        Score threshold used for calling hits, used to set floor
+        on colorbar. By default 1.2.
+
     percentile_to_use : int, optional
         Percentile of scores to use within each bin (e.g., 95 for 
         95th percentile), by default 95.
 
     dpi : int, optional
         Dots per inch for the output PDF, by default 300.
+        
+    figsize : tuple, optional
+        Figure size as (width, height) in inches, by default (8, 2.0).
+
+    colorbar_vmax = float, optional
+        Maximum value for colorbar, by default 3.0.
+        
+    colorbar_vmin = float, optional
+        Mininum value for colorbar, by default max(score, 0.0).
+
         
     Returns
     -------
@@ -101,6 +130,10 @@ def complex_plot(hits: list,
     
     if dpi < 100:
         raise ValueError("dpi must be >= 100")
+    
+    if colorbar_vmin is None:
+        colorbar_vmin = max(score, 0.0)
+
     
     # build up scores and positions arrays from hits
     scores = []
@@ -156,36 +189,53 @@ def complex_plot(hits: list,
     # Make it a 1-row "heatmap"
     heat = np.ma.masked_invalid(binned.reshape(1, -1))
 
-    fig = plt.figure(figsize=(8, 0.8), dpi=300)
-    gs = fig.add_gridspec(2, 1, height_ratios=[1, 1], hspace=0.15)
+    fig = plt.figure(figsize=figsize, dpi=dpi)
+    gs = fig.add_gridspec(3, 1, height_ratios=[0.25, 1, 1], hspace=0.3)
 
-    ax = fig.add_subplot(gs[0, 0])
+    # Top subplot for colorbar
+    cbar_ax = fig.add_subplot(gs[0, 0])
+    cbar_ax.axis('off')  # Hide the axes
+    
+    # Middle subplot for heatmap
+    ax = fig.add_subplot(gs[1, 0])
     cmap = plt.cm.Reds.copy()
     cmap.set_bad(color='lightgray')  # missing bins
 
     im = ax.imshow(
         heat, aspect='auto', interpolation='nearest',
-        extent=[1, genome_length, 0, 1], cmap=cmap)
+        extent=[1, genome_length, 0, 1], cmap=cmap, vmin=colorbar_vmin, vmax=colorbar_vmax)
     ax.set_yticks([])
-    ax.set_xticks([])
     ax.set_xlim(1, genome_length)
-    #ax2.set_xlabel("HSV-1 genome position (bp)")
-    #cb = plt.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
-    #cb.set_label("G4Hunter |score| (95th percentile per bin)")
-
-    ax2 = fig.add_subplot(gs[1, 0], sharex=ax)
-    #ax2.plot(np.linspace(1, genome_length, nbins), coverage, color='k',lw=0.4)
+    ax.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
+    ax.set_ylabel("G4 propensity", rotation=0, labelpad=35, va='center')
+    
+    # Create colorbar in the top subplot area
+    cb = plt.colorbar(im, ax=cbar_ax, orientation='horizontal', fraction=0.8, pad=0.1)    
+    # Set only min/max ticks from actual data
+    valid_data = binned[np.isfinite(binned)]
+    if len(valid_data) > 0:
+        vmin, vmax = colorbar_vmin, colorbar_vmax
+        cb.set_ticks([])  # Remove automatic ticks
+        # Manually position min/max labels at the edges
+        cb.ax.text(-0.12, 0.9, f'{vmin:.2f}', ha='left', va='top', fontsize=6, transform=cb.ax.transAxes)
+        cb.ax.text(1.12, 0.9, f'{vmax:.2f}', ha='right', va='top', fontsize=6, transform=cb.ax.transAxes)
+    
+    # Bottom subplot for coverage
+    ax2 = fig.add_subplot(gs[2, 0], sharex=ax)
+    
 
     coverage_positions = np.linspace(1, genome_length, nbins)
     bar_width = coverage_positions[1]-coverage_positions[0]
     ax2.bar(coverage_positions, coverage, color='k',width=bar_width)
     ax2.set_ylim(0, 1)
-    ax2.set_ylabel("cov.")
-    ax2.set_xlabel("")
+    ax2.set_ylabel("Coverage", rotation=0, labelpad=20, va='center')
     ax2.set_xticks(np.arange(0, genome_length+1, 20000))
-    ax.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
-    fig.suptitle(f"G4 propensity (bin_size={edges[1]-edges[0]} bps, window percentile={percentile_to_use}%)", y=1.25, fontsize=8)
+    ax2.set_xlabel("Position (bp)")
+    
+    # Add common y-axis label
+    fig.suptitle(f"G4 propensity (bin_size={edges[1]-edges[0]} bps, window percentile={percentile_to_use}%)", y=0.98, fontsize=8)
+    plt.tight_layout(pad=1.0)
 
-    fig.savefig(str(out_pdf), dpi=dpi)
+    fig.savefig(str(out_pdf), dpi=dpi, bbox_inches='tight')
     # ................................................................................................
     #

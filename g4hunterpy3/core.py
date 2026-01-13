@@ -21,7 +21,7 @@ from typing import Iterator, List, Optional, Sequence, Tuple, Union, Dict
 
 import numpy as np
 import protfasta
-from protfasta.protfasta_exceptions import ProtfastaException
+
 
 @dataclass(frozen=True)
 class WindowHit:
