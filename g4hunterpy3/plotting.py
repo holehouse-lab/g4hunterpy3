@@ -67,7 +67,9 @@ def complex_plot(hits: list,
                  dpi: int = 300,
                  figsize: tuple = (8, 1.5),
                  colorbar_vmax: float = 3.0,
-                colorbar_vmin: float = None
+                 colorbar_vmin: float = None,
+                 highlight_regions: list = None,
+                 strand_agnostic: bool = True   
                  ):
     
     """
@@ -110,6 +112,18 @@ def complex_plot(hits: list,
     colorbar_vmin = float, optional
         Mininum value for colorbar, by default max(score, 0.0).
 
+    highlight_regions : list, optional
+        List of [start, end] pairs defining regions to highlight on the
+        x-axis. Each element should be a list or tuple with two integers
+        representing the start and end positions (1-based) of the region
+        to highlight. Highlighted regions are shown as yellow vertical
+        spans with alpha=0.5. By default None (no highlighting).
+
+    strand_agnostic : bool, optional
+        If True, use absolute G4 scores (ignoring strand) for plotting.
+        If False, use raw scores (which can be negative for C-rich
+        regions). Set to true for dsDNA sequences where both strands 
+        can form G4s. By default True.
         
     Returns
     -------
@@ -131,8 +145,13 @@ def complex_plot(hits: list,
     if dpi < 100:
         raise ValueError("dpi must be >= 100")
     
+    # Set colorbar limits based on strand_agnostic mode
     if colorbar_vmin is None:
-        colorbar_vmin = max(score, 0.0)
+        if strand_agnostic:
+            colorbar_vmin = max(score, 0.0)
+        else:
+            # For strand-specific, use symmetric limits around zero
+            colorbar_vmin = -colorbar_vmax
 
     
     # build up scores and positions arrays from hits
@@ -152,7 +171,10 @@ def complex_plot(hits: list,
     full[positions - 1] = scores   # positions are 1-based, so correct
 
     # get strand-agnostic G4 propensity
-    signal = np.abs(full)
+    if strand_agnostic:
+        signal = np.abs(full)
+    else:
+        signal = full
 
     # build "edges"
     edges = np.linspace(0, genome_length, nbins + 1, dtype=int)
@@ -169,7 +191,8 @@ def complex_plot(hits: list,
         # get a local segment of the signal (absolute G4 score)
         seg = signal[edges[i]:edges[i+1]]
 
-        # returns a boolean array where True indicates valid (non-NaN) data
+        # returns a boolean array where True indicates valid (non-NaN) 
+        # data
         valid = np.isfinite(seg)
         
 
@@ -198,7 +221,13 @@ def complex_plot(hits: list,
     
     # Middle subplot for heatmap
     ax = fig.add_subplot(gs[1, 0])
-    cmap = plt.cm.Reds.copy()
+    
+    # Use appropriate colormap based on strand_agnostic setting
+    if strand_agnostic:
+        cmap = plt.cm.Reds.copy()
+    else:
+        # Use diverging colormap for strand-specific: blue (C-rich/negative) to red (G-rich/positive)
+        cmap = plt.cm.RdBu_r.copy()
     cmap.set_bad(color='lightgray')  # missing bins
 
     im = ax.imshow(
@@ -208,6 +237,12 @@ def complex_plot(hits: list,
     ax.set_xlim(1, genome_length)
     ax.tick_params(axis='x', which='both', bottom=False, labelbottom=False)
     ax.set_ylabel("G4 propensity", rotation=0, labelpad=35, va='center')
+    
+    # Add highlight regions if provided
+    if highlight_regions is not None:
+        for region in highlight_regions:
+            start, end = region[0], region[1]
+            ax.axvspan(start, end, lw=0, color='y', alpha=0.5)
     
     # Create colorbar in the top subplot area
     cb = plt.colorbar(im, ax=cbar_ax, orientation='horizontal', fraction=0.8, pad=0.1)    
@@ -227,6 +262,14 @@ def complex_plot(hits: list,
     coverage_positions = np.linspace(1, genome_length, nbins)
     bar_width = coverage_positions[1]-coverage_positions[0]
     ax2.bar(coverage_positions, coverage, color='k',width=bar_width)
+
+
+    if highlight_regions is not None:
+        for region in highlight_regions:
+            start, end = region[0], region[1]
+            ax2.axvspan(start, end, lw=0, color='y', alpha=0.5)
+    
+
     ax2.set_ylim(0, 1)
     ax2.set_ylabel("Coverage", rotation=0, labelpad=20, va='center')
     ax2.set_xticks(np.arange(0, genome_length+1, 20000))

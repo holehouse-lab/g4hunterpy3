@@ -289,6 +289,94 @@ class TestComplexPlot:
             assert out_pdf.exists()
 
     # -------------------------------------------------------------------------
+    # Highlight regions tests
+    # -------------------------------------------------------------------------
+
+    def test_highlight_single_region(self):
+        """Plot with single highlight region should work."""
+        hits = self._create_mock_hits(100, 10000)
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_pdf = Path(tmpdir) / "highlight_single.pdf"
+            complex_plot(
+                hits, 
+                genome_length=10000, 
+                out_pdf=out_pdf,
+                highlight_regions=[[1000, 2000]]
+            )
+            assert out_pdf.exists()
+
+    def test_highlight_multiple_regions(self):
+        """Plot with multiple highlight regions should work."""
+        hits = self._create_mock_hits(100, 10000)
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_pdf = Path(tmpdir) / "highlight_multiple.pdf"
+            complex_plot(
+                hits, 
+                genome_length=10000, 
+                out_pdf=out_pdf,
+                highlight_regions=[[1000, 2000], [5000, 6000], [8000, 9000]]
+            )
+            assert out_pdf.exists()
+
+    def test_highlight_regions_as_tuples(self):
+        """Plot with highlight regions as tuples should work."""
+        hits = self._create_mock_hits(100, 10000)
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_pdf = Path(tmpdir) / "highlight_tuples.pdf"
+            complex_plot(
+                hits, 
+                genome_length=10000, 
+                out_pdf=out_pdf,
+                highlight_regions=[(1000, 2000), (5000, 6000)]
+            )
+            assert out_pdf.exists()
+
+    def test_highlight_empty_list(self):
+        """Plot with empty highlight regions list should work."""
+        hits = self._create_mock_hits(100, 10000)
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_pdf = Path(tmpdir) / "highlight_empty.pdf"
+            complex_plot(
+                hits, 
+                genome_length=10000, 
+                out_pdf=out_pdf,
+                highlight_regions=[]
+            )
+            assert out_pdf.exists()
+
+    def test_highlight_full_genome(self):
+        """Plot with highlight region spanning full genome should work."""
+        hits = self._create_mock_hits(100, 10000)
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_pdf = Path(tmpdir) / "highlight_full.pdf"
+            complex_plot(
+                hits, 
+                genome_length=10000, 
+                out_pdf=out_pdf,
+                highlight_regions=[[1, 10000]]
+            )
+            assert out_pdf.exists()
+
+    def test_highlight_overlapping_regions(self):
+        """Plot with overlapping highlight regions should work."""
+        hits = self._create_mock_hits(100, 10000)
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_pdf = Path(tmpdir) / "highlight_overlap.pdf"
+            complex_plot(
+                hits, 
+                genome_length=10000, 
+                out_pdf=out_pdf,
+                highlight_regions=[[1000, 3000], [2000, 4000]]
+            )
+            assert out_pdf.exists()
+
+    # -------------------------------------------------------------------------
     # Parameter validation tests
     # -------------------------------------------------------------------------
 

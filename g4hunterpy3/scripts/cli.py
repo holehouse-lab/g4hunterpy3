@@ -115,6 +115,13 @@ def main() -> int:
         help="Also write a PDF plot of the sliding-window scores per record")
 
     args.add_argument(
+        "--strand-agnostic",
+        action="store_true",
+        default=False,
+        help="Use absolute G4 scores (assumes dsDNA and ignores strand) for plotting in complex plot")
+
+
+    args.add_argument(
         "--complex-plot",
         action="store_true",
         help="Also write a PDF plot of the sliding-window scores per record")
@@ -130,6 +137,14 @@ def main() -> int:
         type=int,
         default=95,
         help="Percentile to use for y-axis limit in complex plot")
+
+    args.add_argument(
+        "--highlight-regions",
+        type=str,
+        nargs="+",
+        metavar="START:END",
+        help="Regions to highlight on complex plot. Specify as START:END pairs (1-based coordinates). "
+             "Multiple regions can be specified, e.g.: --highlight-regions 1000:2000 5000:6000 8000:9000")
 
     # ...............................................................
 
@@ -170,12 +185,27 @@ def main() -> int:
 
         if args.complex_plot:
             plot_path = out_dir / f"{safe_header}-ComplexScorePlot.pdf"
+            
+            # Parse highlight regions if provided
+            highlight_regions = None
+            if args.highlight_regions:
+                highlight_regions = []
+                for region_str in args.highlight_regions:
+                    try:
+                        start, end = region_str.split(":")
+                        highlight_regions.append([int(start), int(end)])
+                    except ValueError:
+                        print(f"Warning: Invalid region format '{region_str}'. Expected START:END (e.g., 1000:2000). Skipping.", file=sys.stderr)
+            
+            print(args.strand_agnostic)
             complex_plot(hits, 
                          genome_length=len(seq), 
                          out_pdf=plot_path, 
                          nbins=args.complex_plot_nbins, 
                          score=args.score,
-                         percentile_to_use=args.complex_plot_percentile)
+                         percentile_to_use=args.complex_plot_percentile,
+                         highlight_regions=highlight_regions,
+                         strand_agnostic=args.strand_agnostic)
 
     return 0
 

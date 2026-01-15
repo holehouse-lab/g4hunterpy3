@@ -8,8 +8,9 @@ g4hunterpy3
 
 Python 3 implementation of G4Hunter as a full Python package. G4Hunter predicts G-quadruplex (G4) propensity in DNA sequences using a sliding window approach based on the algorithm described by Bedrat et al. (2016).
 
-We created this package because we wanted to use G4Hunter
+We created this package because we wanted to use G4Hunter locally, yet [the original Python implementation](https://github.com/AnimaTardeb/G4Hunter) is only compatible with Python 2.7. Based on the script there, we converted the code into a fully-fledged installable package with tests. This should reproduce and extended the original functionality, notably with the `--complex-plot` function which is useful for large-scale predictions.
 
+For any questinos/concerns contact Alex.
 
 
 ---
@@ -77,6 +78,8 @@ The algorithm assigns a score to every nucleotide in a sequence to reflect its c
 	* Thresold of 1.2: This is a recommended compromise for identifying many true G4 motifs while maintaining reasonable precision. 
 	* Threshold of 1.5: This is recommended for high-confidence predictions (precision >90%) where stable G4 formation is likely.
 
+4. Finally, for plotting you can plot scores either in a strand-dependent way (i.e. runs of C are expected to be G quadruplex forming) or a strand-agnostic way,
+
 	
 For more information, [see the manuscript](https://academic.oup.com/nar/article/44/4/1746/1854457)
 
@@ -129,6 +132,8 @@ g4hunterpy3 -i <input.fasta> -o <output_directory> [options]
 | `--complex-plot` | — | No | `false` | Generate a complex PDF plot with binned visualization of sliding-window scores |
 | `--complex-plot-nbins` | — | No | `1000` | Number of bins for the complex plot (appropriate for large genomes) |
 | `--complex-plot-percentile` | — | No | `95` | Percentile to use for y-axis limit in complex plot |
+| `--strand-agnostic` | — | No | `false` | Use absolute G4 scores for complex plot (treats both strands equally). When enabled, uses red colormap; when disabled, uses diverging blue-red colormap to show C-rich (negative) vs G-rich (positive) regions |
+| `--highlight-regions` | — | No | — | Regions to highlight on complex plot. Specify as `START:END` pairs (1-based coordinates). Multiple regions can be specified |
 
 ### Examples
 
@@ -177,6 +182,39 @@ g4hunterpy3 -i genome.fasta -o results/ --complex-plot --complex-plot-nbins 500
 g4hunterpy3 -i genome.fasta -o results/ --simple-plot --complex-plot --complex-plot-percentile 99
 ```
 
+#### Highlight specific regions on complex plot
+
+You can highlight specific genomic regions on the complex plot using the `--highlight-regions` option. This is useful for marking regions of interest such as promoters, genes, or other annotations.
+
+```bash
+# Highlight a single region (e.g., a promoter from position 1000 to 2000)
+g4hunterpy3 -i genome.fasta -o results/ --complex-plot --highlight-regions 1000:2000
+
+# Highlight multiple regions
+g4hunterpy3 -i genome.fasta -o results/ --complex-plot --highlight-regions 1000:2000 5000:6000 8000:9000
+
+# Combine with other complex plot options
+g4hunterpy3 -i genome.fasta -o results/ --complex-plot --complex-plot-nbins 500 --highlight-regions 1000:2000 5000:6000
+```
+
+Highlighted regions appear as yellow vertical spans (alpha=0.5) on the heatmap.
+
+#### Strand-agnostic vs strand-specific plotting
+
+By default, the complex plot shows strand-specific scores using a diverging blue-red colormap:
+- **Blue** regions indicate C-rich sequences (negative scores, potential G4 on reverse strand)
+- **Red** regions indicate G-rich sequences (positive scores, potential G4 on forward strand)
+
+Use `--strand-agnostic` to show absolute scores (ignoring strand), which is useful for double-stranded DNA where G4s can form on either strand:
+
+```bash
+# Strand-specific (default): blue for C-rich, red for G-rich
+g4hunterpy3 -i genome.fasta -o results/ --complex-plot
+
+# Strand-agnostic: all G4-forming regions shown in red (absolute values)
+g4hunterpy3 -i genome.fasta -o results/ --complex-plot --strand-agnostic
+```
+
 #### Full example with all options
 
 ```bash
@@ -189,7 +227,9 @@ g4hunterpy3 \
     --simple-plot \
     --complex-plot \
     --complex-plot-nbins 1000 \
-    --complex-plot-percentile 95
+    --complex-plot-percentile 95 \
+    --strand-agnostic \
+    --highlight-regions 1000:2000 5000:6000
 ```
 
 ### Output Files
